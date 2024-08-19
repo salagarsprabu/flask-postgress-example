@@ -1,31 +1,25 @@
-from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+from flask import Blueprint, request, jsonify
+from . import db
 
-app = Flask(__name__)
-app.config.from_object('app.config.Config')
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+main_bp = Blueprint('main', __name__)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
+    name = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
 
-@app.route('/users', methods=['GET'])
+    def __repr__(self):
+        return f'<User {self.name}>'
+
+@main_bp.route('/users', methods=['GET'])
 def get_users():
     users = User.query.all()
-    return jsonify([user.username for user in users])
+    return jsonify([{'id': user.id, 'name': user.name, 'email': user.email} for user in users])
 
-@app.route('/users', methods=['POST'])
+@main_bp.route('/users', methods=['POST'])
 def add_user():
-    username = request.json.get('username')
-    if not username:
-        return jsonify({'error': 'Username is required'}), 400
-
-    user = User(username=username)
-    db.session.add(user)
+    data = request.get_json()
+    new_user = User(name=data['name'], email=data['email'])
+    db.session.add(new_user)
     db.session.commit()
-    return jsonify({'id': user.id, 'username': user.username}), 201
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=80)
+    return jsonify({'id': new_user.id, 'name': new_user.name, 'email': new_user.email}), 201
